@@ -1,4 +1,4 @@
-import { _decorator, Button, Component, debug, EventKeyboard, Graphics, input, Input, JsonAsset, KeyCode, Node, Sprite } from 'cc';
+import { _decorator, Button, Component, debug, EventKeyboard, Graphics, input, Input, JsonAsset, KeyCode, math, Node, Sprite } from 'cc';
 import { child, comp } from '../../scripts/Decorator';
 import { ResourceMgr } from '../../core_tgx/base/ResourceMgr';
 import { ModuleDef } from '../../scripts/ModuleDef';
@@ -46,6 +46,8 @@ export class EditorComp extends Component {
             if(res){
                 let obj:astar.MapData = res.json as astar.MapData;
                 this.seeker = new astar.HoneycombSeeker(obj);
+                let grahics = this.gps;
+                grahics.strokeColor = new math.Color(255,0,0,255);
                 this.ClickDrawGrid();
                 debugger;
             }
@@ -80,19 +82,33 @@ export class EditorComp extends Component {
             }
         }
         grahics.color = grahics.color.fromHEX("#fefe00");
-        grahics.lineWidth = 10;
+        grahics.lineWidth = 5;
         for (let t = 0; t < heightRadius; t++) {
             this._hexagonMap[t] = [];
             
             for (let e = 0; e < widthRadius; e++){
-                grahics.moveTo((e + t % 2 * .5) * outerRadius * 2, t * outerRadius / 2 * 3);
+                let x = (e + t % 2 * .5) * outerRadius * 2;
+                let y = t * outerRadius / 2 * 3;
+                let point = this._transformCoord(x,y);
+                x = point[0];
+                y = point[1];
+                console.log(`x  === > ${x}   y === ${y}`);
+                const isFill = !this.seeker.mapData.roadDataArr[t][e];
                 const posarr = astar.HexagonUtils.ShareCorners();
                 for (let idx = 0; idx < posarr.length; idx+=2) {
-                    const pos = posarr[idx];
-                    grahics.lineTo(pos[idx], pos[idx+1]);
+                    idx == 0 ?grahics.moveTo(x+posarr[idx], y+posarr[idx+1]):
+                    grahics.lineTo(x+posarr[idx], y+posarr[idx+1]);
+                    console.log(`${idx} dian x  === > ${x+posarr[idx]}   y === ${y+posarr[idx+1]}`);
                 }
+                isFill ? grahics.fill():grahics.stroke();
             }
         }
+    }
+
+    private _transformCoord(x:number, y:number):number[]{
+        const harf = this.seeker.mapData.mapHeight/2;
+        const addW = -this.seeker.mapData.mapWidth/2;
+        return [x+addW, harf-y];
     }
 
 
