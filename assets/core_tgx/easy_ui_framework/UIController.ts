@@ -1,5 +1,7 @@
 import { _decorator, game, Prefab, isValid, Button, find, EventHandler, Toggle, ToggleContainer, Node, SkeletalAnimation, Component, EventTouch } from "cc";
 const { ccclass, property } = _decorator;
+
+var _idBase = 1000;
 /***
  * @en internal class, used for handling node event.
  * @zh 内部类，用于节点事件监听
@@ -80,6 +82,111 @@ export class AutoEventHandler {
             game.off(h.event, h.cb, h.target);
         }
     }
+
+    static onButtonListener(page:Node, buttonNode:Node, cb: Function, target?: any, args?: any){
+        if (!buttonNode) {
+            return null;
+        }
+        //添加转发器
+        let agent = page.getComponent(__NodeEventAgent__);
+        if (!agent) {
+            agent = page.addComponent(__NodeEventAgent__);
+        }
+
+        let btn = buttonNode.getComponent(Button);
+        let clickEvents = btn.clickEvents;
+        let handler = new EventHandler();
+        handler.target = page;
+        handler.component = 'tgxNodeEventAgent';
+        handler.handler = 'onButtonClicked';
+        handler.customEventData = '' + _idBase++;
+
+        //附加额外信息 供事件转发使用
+        handler['$cb$'] = cb;
+        handler['$target$'] = target;
+        handler['$args$'] = args;
+
+        clickEvents.push(handler);
+        btn.clickEvents = clickEvents;
+    }
+    static offButtonListener(page:Node, buttonNode:Node, cb: Function, target?: any){
+        if (!buttonNode) {
+            return; ``
+        }
+
+        let agent = page.getComponent(__NodeEventAgent__);
+        if (!agent) {
+            return;
+        }
+        let btn = buttonNode.getComponent(Button);
+        if (!btn) {
+            return;
+        }
+        let clickEvents = btn.clickEvents;
+        for (let i = 0; i < clickEvents.length; ++i) {
+            let h = clickEvents[i];
+            if (h['$cb$'] == cb && h['$target$'] == target) {
+                clickEvents.splice(i, 1);
+                btn.clickEvents = clickEvents;
+                break;
+            }
+        }
+    }
+
+    static onToggleListener(page:Node, buttonNode:Node, cb: Function, target?: any, args?: any){
+        if (!buttonNode) {
+            return null;
+        }
+        //添加转发器
+        let agent = page.getComponent(__NodeEventAgent__);
+        if (!agent) {
+            agent = page.addComponent(__NodeEventAgent__);
+        }
+
+        let btn = buttonNode.getComponent(Toggle) as any;
+        if (!btn) {
+            btn = buttonNode.getComponent(ToggleContainer) as any;
+        }
+        let checkEvents = btn.checkEvents;
+        let handler = new EventHandler();
+        handler.target = page;
+        handler.component = 'tgxNodeEventAgent';
+        handler.handler = 'onToggleEvent';
+        handler.customEventData = '' + _idBase++;
+
+        //附加额外信息 供事件转发使用
+        handler['$cb$'] = cb;
+        handler['$target$'] = target;
+        handler['$args$'] = args;
+
+        checkEvents.push(handler);
+        btn.checkEvents = checkEvents;
+    }
+
+    static offToggleListener(page:Node, buttonNode:Node, cb: Function, target?: any){
+        if (!buttonNode) {
+            return null;
+        }
+
+        //添加转发器
+        let agent = page.getComponent(__NodeEventAgent__);
+        if (!agent) {
+            return;
+        }
+        let btn = buttonNode.getComponent(Toggle) as any;
+        if (!btn) {
+            btn = buttonNode.getComponent(ToggleContainer) as any;
+        }
+        let checkEvents = btn.checkEvents;
+        for (let i = 0; i < checkEvents.length; ++i) {
+            let h = checkEvents[i];
+            if (h['$cb$'] == cb && h['$target$'] == target) {
+                checkEvents.splice(i, 1);
+                btn.checkEvents = checkEvents;
+                break;
+            }
+        }
+    }
 }
 
 /**
@@ -87,7 +194,6 @@ export class AutoEventHandler {
  * @zh 各类UI面板基类
  * */
 export class UIController extends AutoEventHandler {
-    private static _idBase = 1000;
 
     private static _controllers: UIController[] = [];
     private _instId: number = 0;
@@ -100,7 +206,7 @@ export class UIController extends AutoEventHandler {
         this._prefab = prefab;
         this._layer = layer;
         this._layout = layoutCls;
-        this._instId = UIController._idBase++;
+        this._instId = _idBase++;
         UIController._controllers.push(this);
     }
 
@@ -204,31 +310,9 @@ export class UIController extends AutoEventHandler {
             buttonNode = find(relativeNodePath, this.node);
         }
 
-        if (!buttonNode) {
-            return null;
-        }
+        
 
-        //添加转发器
-        let agent = this.node.getComponent(__NodeEventAgent__);
-        if (!agent) {
-            agent = this.node.addComponent(__NodeEventAgent__);
-        }
-
-        let btn = buttonNode.getComponent(Button);
-        let clickEvents = btn.clickEvents;
-        let handler = new EventHandler();
-        handler.target = this.node;
-        handler.component = 'tgxNodeEventAgent';
-        handler.handler = 'onButtonClicked';
-        handler.customEventData = '' + UIController._idBase++;
-
-        //附加额外信息 供事件转发使用
-        handler['$cb$'] = cb;
-        handler['$target$'] = target;
-        handler['$args$'] = args;
-
-        clickEvents.push(handler);
-        btn.clickEvents = clickEvents;
+        AutoEventHandler.onButtonListener(this.node, buttonNode, cb, target, args);
     }
 
     /**
@@ -251,27 +335,7 @@ export class UIController extends AutoEventHandler {
             buttonNode = find(relativeNodePath, this.node);
         }
 
-        if (!buttonNode) {
-            return; ``
-        }
-
-        let agent = this.node.getComponent(__NodeEventAgent__);
-        if (!agent) {
-            return;
-        }
-        let btn = buttonNode.getComponent(Button);
-        if (!btn) {
-            return;
-        }
-        let clickEvents = btn.clickEvents;
-        for (let i = 0; i < clickEvents.length; ++i) {
-            let h = clickEvents[i];
-            if (h['$cb$'] == cb && h['$target$'] == target) {
-                clickEvents.splice(i, 1);
-                btn.clickEvents = clickEvents;
-                break;
-            }
-        }
+        AutoEventHandler.offButtonListener(this.node, buttonNode, cb, target);
     }
 
     /**
@@ -297,34 +361,9 @@ export class UIController extends AutoEventHandler {
             buttonNode = find(relativeNodePath, this.node);
         }
 
-        if (!buttonNode) {
-            return null;
-        }
+        
 
-        //添加转发器
-        let agent = this.node.getComponent(__NodeEventAgent__);
-        if (!agent) {
-            agent = this.node.addComponent(__NodeEventAgent__);
-        }
-
-        let btn = buttonNode.getComponent(Toggle) as any;
-        if (!btn) {
-            btn = buttonNode.getComponent(ToggleContainer) as any;
-        }
-        let checkEvents = btn.checkEvents;
-        let handler = new EventHandler();
-        handler.target = this.node;
-        handler.component = 'tgxNodeEventAgent';
-        handler.handler = 'onToggleEvent';
-        handler.customEventData = '' + UIController._idBase++;
-
-        //附加额外信息 供事件转发使用
-        handler['$cb$'] = cb;
-        handler['$target$'] = target;
-        handler['$args$'] = args;
-
-        checkEvents.push(handler);
-        btn.checkEvents = checkEvents;
+        AutoEventHandler.onToggleListener(this.node, buttonNode, cb, target, args);
     }
 
     /**
@@ -349,28 +388,7 @@ export class UIController extends AutoEventHandler {
             buttonNode = find(relativeNodePath, this.node);
         }
 
-        if (!buttonNode) {
-            return null;
-        }
-
-        //添加转发器
-        let agent = this.node.getComponent(__NodeEventAgent__);
-        if (!agent) {
-            return;
-        }
-        let btn = buttonNode.getComponent(Toggle) as any;
-        if (!btn) {
-            btn = buttonNode.getComponent(ToggleContainer) as any;
-        }
-        let checkEvents = btn.checkEvents;
-        for (let i = 0; i < checkEvents.length; ++i) {
-            let h = checkEvents[i];
-            if (h['$cb$'] == cb && h['$target$'] == target) {
-                checkEvents.splice(i, 1);
-                btn.checkEvents = checkEvents;
-                break;
-            }
-        }
+        AutoEventHandler.offToggleListener(this.node, buttonNode, cb, target);
     }
 
     /***
